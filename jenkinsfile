@@ -46,7 +46,7 @@ pipeline {
         stage('Deploy on AWS VM') {
             steps {
                 script {
-                    sshagent (credentials: ['aws-ssh-ubuntu']) {
+                    sshagent (credentials: ['aws-ssh']) {
                         bat """
                         ssh -o StrictHostKeyChecking=no ubuntu@35.154.2.193 '
                             docker pull $DOCKERHUB_REPO/$FRONTEND_IMAGE:latest &&
