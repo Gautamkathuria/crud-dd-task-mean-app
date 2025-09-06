@@ -1,78 +1,64 @@
 pipeline {
     agent any
 
- tools {
-        git 'Default'   
+    tools {
+        git 'Default'   // Use Git tool configured in Jenkins
     }
 
     environment {
-        FRONTEND_IMAGE = "kathuriagautam2411/mean-frontend"
-        BACKEND_IMAGE  = "kathuriagautam2411/mean-backend"
-        DEPLOY_SERVER  = "ubuntu@35.154.2.193"
-        DOCKERHUB      = credentials('dockerhub-creds')
+        DOCKERHUB_REPO = 'kathuriagautam2411'
+        FRONTEND_IMAGE = 'mean-frontend'
+        BACKEND_IMAGE  = 'mean-backend'
+        VM_USER = 'ubuntu'
+        VM_IP   = '35.154.2.193'   // Replace with your EC2 public IP
     }
 
     stages {
-        stage('Checkout SCM') {
+        stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/Gautamkathuria/crud-dd-task-mean-app.git',
-                credentialsId: 'github-cred'
+                git branch: 'main', url: 'https://github.com/Gautamkathuria/crud-dd-task-mean-app.git'
             }
         }
 
-        stage('Build & Push Frontend on VM') {
+        stage('Build Docker Images') {
             steps {
-                sshagent(['vm-ssh-key']) {
-                    sh """
-                    ssh -o StrictHostKeyChecking=no $DEPLOY_SERVER '
-                        rm -rf ~/mean-app || true &&
-                        git clone https://github.com/Gautamkathuria/crud-dd-task-mean-app.git ~/mean-app &&
-                        cd ~/mean-app/frontend &&
-                        docker build -t $FRONTEND_IMAGE:\$BUILD_NUMBER . &&
-                        echo $DOCKERHUB_PSW | docker login -u $DOCKERHUB_USR --password-stdin &&
-                        docker push $FRONTEND_IMAGE:\$BUILD_NUMBER &&
-                        docker tag $FRONTEND_IMAGE:\$BUILD_NUMBER $FRONTEND_IMAGE:latest &&
-                        docker push $FRONTEND_IMAGE:latest
-                    '
-                    """
+                sh """
+                docker build -t $DOCKERHUB_REPO/$FRONTEND_IMAGE:latest frontend
+                docker build -t $DOCKERHUB_REPO/$BACKEND_IMAGE:latest backend
+                """
+            }
+        }
+
+        stage('Push to Docker Hub') {
+            steps {
+                script {
+                    withDockerRegistry([credentialsId: '0c1f960f-941f-463c-81d4-7ec2b1834bfe', url: '']) {
+                        sh """
+                        docker push $DOCKERHUB_REPO/$FRONTEND_IMAGE:latest
+                        docker push $DOCKERHUB_REPO/$BACKEND_IMAGE:latest
+                        """
+                    }
                 }
             }
         }
 
-        stage('Build & Push Backend on VM') {
+        stage('Deploy on AWS VM') {
             steps {
-                sshagent(['vm-ssh-key']) {
-                    sh """
-                    ssh -o StrictHostKeyChecking=no $DEPLOY_SERVER '
-                        cd ~/mean-app/backend &&
-                        docker build -t $BACKEND_IMAGE:\$BUILD_NUMBER . &&
-                        echo $DOCKERHUB_PSW | docker login -u $DOCKERHUB_USR --password-stdin &&
-                        docker push $BACKEND_IMAGE:\$BUILD_NUMBER &&
-                        docker tag $BACKEND_IMAGE:\$BUILD_NUMBER $BACKEND_IMAGE:latest &&
-                        docker push $BACKEND_IMAGE:latest
-                    '
-                    """
-                }
-            }
-        }
-
-        stage('Deploy on VM') {
-            steps {
-                sshagent(['vm-ssh-key']) {
-                    sh """
-                    ssh -o StrictHostKeyChecking=no $DEPLOY_SERVER '
-                        docker pull $FRONTEND_IMAGE:latest &&
-                        docker pull $BACKEND_IMAGE:latest &&
-
-                        docker stop mean-frontend || true &&
-                        docker rm mean-frontend || true &&
-                        docker run -d --name mean-frontend -p 80:80 $FRONTEND_IMAGE:latest &&
-
-                        docker stop mean-backend || true &&
-                        docker rm mean-backend || true &&
-                        docker run -d --name mean-backend -p 5000:5000 $BACKEND_IMAGE:latest
-                    '
-                    """
+                script {
+                    sshagent (credentials: ['aws-ec2-key']) {
+                        sh """
+                        ssh -o StrictHostKeyChecking=no $VM_USER@$VM_IP '
+                            docker pull $DOCKERHUB_REPO/$FRONTEND_IMAGE:latest &&
+                            docker pull $DOCKERHUB_REPO/$BACKEND_IMAGE:latest &&
+                            docker stop frontend || true &&
+                            docker rm frontend || true &&
+                            docker stop backend || true &&
+                            docker rm backend || true &&
+                            docker run -d --name frontend -p 80:80 $DOCKERHUB_REPO/$FRONTEND_IMAGE:latest &&
+                            docker run -d --name backend -p 3000:3000 $DOCKERHUB_REPO/$BACKEND_IMAGE:latest
+                        '
+                        """
+                    }
                 }
             }
         }
