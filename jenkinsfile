@@ -11,7 +11,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: ''
+                git branch: 'main', url: 'https://github.com/Gautamkathuria/crud-dd-task-mean-app.git'
             }
         }
 
@@ -21,7 +21,7 @@ pipeline {
                     sh """
                     ssh -o StrictHostKeyChecking=no $DEPLOY_SERVER '
                         rm -rf ~/mean-app || true &&
-                        git clone https://github.com/yourusername/your-mean-app-repo.git ~/mean-app &&
+                        git clone https://github.com/Gautamkathuria/crud-dd-task-mean-app.git ~/mean-app &&
                         cd ~/mean-app/frontend &&
                         docker build -t $FRONTEND_IMAGE:\$BUILD_NUMBER . &&
                         echo $DOCKERHUB_PSW | docker login -u $DOCKERHUB_USR --password-stdin &&
