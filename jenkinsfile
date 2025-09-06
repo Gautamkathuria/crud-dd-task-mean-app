@@ -23,7 +23,7 @@ pipeline {
 
         stage('Build Docker Images') {
             steps {
-                sh """
+                bat """
                 docker build -t $DOCKERHUB_REPO/$FRONTEND_IMAGE:latest frontend
                 docker build -t $DOCKERHUB_REPO/$BACKEND_IMAGE:latest backend
                 """
@@ -34,7 +34,7 @@ pipeline {
             steps {
                 script {
                     withDockerRegistry([credentialsId: '0c1f960f-941f-463c-81d4-7ec2b1834bfe', url: '']) {
-                        sh """
+                        bat """
                         docker push $DOCKERHUB_REPO/$FRONTEND_IMAGE:latest
                         docker push $DOCKERHUB_REPO/$BACKEND_IMAGE:latest
                         """
@@ -47,7 +47,7 @@ pipeline {
             steps {
                 script {
                     sshagent (credentials: ['aws-ssh-ubuntu']) {
-                        sh """
+                        bat """
                         ssh -o StrictHostKeyChecking=no ubuntu@35.154.2.193 '
                             docker pull $DOCKERHUB_REPO/$FRONTEND_IMAGE:latest &&
                             docker pull $DOCKERHUB_REPO/$BACKEND_IMAGE:latest &&
