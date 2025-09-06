@@ -1,0 +1,80 @@
+- hosts: mean_server
+  become: yes
+  tasks:
+
+    - name: Update and upgrade apt
+      apt:
+        update_cache: yes
+        upgrade: dist
+
+    - name: Install Docker
+      apt:
+        name: docker.io
+        state: present
+
+    - name: Install Docker Compose
+      apt:
+        name: docker-compose
+        state: present
+
+    - name: Install Nginx
+      apt:
+        name: nginx
+        state: present
+
+    - name: Start Nginx service
+      service:
+        name: nginx
+        state: started
+        enabled: yes
+
+    - name: Clone project repo
+      git:
+        repo: 'https://github.com/Gautamkathuria/crud-dd-task-mean-app.git'
+        dest: /home/ubuntu/crud-dd-task-mean-app
+
+    - name: Run frontend container
+      docker_container:
+        name: frontend
+        image: kathuriagautam2411/mean-frontend:latest
+        state: started
+        ports:
+          - "8080:80"
+
+    - name: Run backend container
+      docker_container:
+        name: backend
+        image: kathuriagautam2411/mean-backend:latest
+        state: started
+        ports:
+          - "3000:3000"
+
+    - name: Configure Nginx reverse proxy
+      copy:
+        dest: /etc/nginx/sites-available/mean-app
+        content: |
+          server {
+              listen 80;
+              server_name _;
+              location / {
+                  proxy_pass http://localhost:8080;
+              }
+              location /api/ {
+                  proxy_pass http://localhost:3000/;
+              }
+          }
+    - name: Enable Nginx site
+      file:
+        src: /etc/nginx/sites-available/mean-app
+        dest: /etc/nginx/sites-enabled/mean-app
+        state: link
+
+    - name: Remove default Nginx site
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+
+    - name: Reload Nginx
+      service:
+        name: nginx
+        state: reloaded
