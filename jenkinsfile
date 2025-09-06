@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     tools {
-        git 'Default'   // Use Git tool configured in Jenkins
+        git 'Default'   
     }
 
     environment {
@@ -10,13 +10,14 @@ pipeline {
         FRONTEND_IMAGE = 'mean-frontend'
         BACKEND_IMAGE  = 'mean-backend'
         VM_USER = 'ubuntu'
-        VM_IP   = '35.154.2.193'   // Replace with your EC2 public IP
+        VM_IP   = '35.154.2.193'   
     }
 
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/Gautamkathuria/crud-dd-task-mean-app.git'
+                git branch: 'master', url: 'https://github.com/Gautamkathuria/crud-dd-task-mean-app.git',
+                credentialsId: 'github-cred'
             }
         }
 
@@ -45,9 +46,9 @@ pipeline {
         stage('Deploy on AWS VM') {
             steps {
                 script {
-                    sshagent (credentials: ['aws-ec2-key']) {
+                    sshagent (credentials: ['aws-ssh-ubuntu']) {
                         sh """
-                        ssh -o StrictHostKeyChecking=no $VM_USER@$VM_IP '
+                        ssh -o StrictHostKeyChecking=no $ubuntu@$35.154.2.193 '
                             docker pull $DOCKERHUB_REPO/$FRONTEND_IMAGE:latest &&
                             docker pull $DOCKERHUB_REPO/$BACKEND_IMAGE:latest &&
                             docker stop frontend || true &&
