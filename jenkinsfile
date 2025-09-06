@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+ tools {
+        git 'Default'   
+    }
+
     environment {
         FRONTEND_IMAGE = "kathuriagautam2411/mean-frontend"
         BACKEND_IMAGE  = "kathuriagautam2411/mean-backend"
