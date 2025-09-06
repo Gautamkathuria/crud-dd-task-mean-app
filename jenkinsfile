@@ -1,0 +1,54 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_IMAGE = "kathuriagautam2411/mean-frontend"
+        DOCKER_IMAGE = "kathuriagautam2411/mean-backend"
+        DOCKER_IMAGE = "kathuriagautam2411/mean-mongo"
+        DEPLOY_SERVER = "ubuntu@35.154.2.193"
+        DOCKERHUB = credentials('dockerhub-creds')
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/Gautamkathuria/crud-dd-task-mean-app.git'
+            }
+        }
+
+        stage('Build & Push on VM') {
+            steps {
+                sshagent(['vm-ssh-key']) {
+                    sh """
+                    ssh -o StrictHostKeyChecking=no $DEPLOY_SERVER '
+                        rm -rf ~/app || true &&
+                        git clone https://github.com/Gautamkathuria/crud-dd-task-mean-app.git ~/app &&
+                        cd ~/app &&
+                        docker build -t $DOCKER_IMAGE:\$BUILD_NUMBER . &&
+                        echo $DOCKERHUB_PSW | docker login -u $DOCKERHUB_USR --password-stdin &&
+                        docker push $DOCKER_IMAGE:\$BUILD_NUMBER &&
+                        docker tag $DOCKER_IMAGE:\$BUILD_NUMBER $DOCKER_IMAGE:latest &&
+                        docker push $DOCKER_IMAGE:latest
+                    '
+                    """
+                }
+            }
+        }
+
+        stage('Deploy on VM') {
+            steps {
+                sshagent(['vm-ssh-key']) {
+                    sh """
+                    ssh -o StrictHostKeyChecking=no $DEPLOY_SERVER '
+                        docker pull $DOCKER_IMAGE:latest &&
+                        docker stop app-container || true &&
+                        docker rm app-container || true &&
+                        docker run -d --name app-container -p 80:80 $DOCKER_IMAGE:latest
+                    '
+                    """
+                }
+            }
+        }
+    }
+}
+
