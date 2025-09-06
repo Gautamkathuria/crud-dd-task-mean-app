@@ -14,7 +14,7 @@ pipeline {
     }
 
     stages {
-        stage('Checkout' SCM) {
+        stage('Checkout') {
             steps {
                 git branch: 'master', url: 'https://github.com/Gautamkathuria/crud-dd-task-mean-app.git',
                 credentialsId: 'github-cred'
